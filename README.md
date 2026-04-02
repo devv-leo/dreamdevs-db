@@ -1,6 +1,6 @@
 # Database Schema Design for Greenfield Academy
  
-**Status:** ERD complete
+**Status:** ERD complete. Tap [here](https://drive.google.com/file/d/1Zy1hQp9IG4MHYcbmLNP3nqJFHdZU1NDu/view?usp=drive_link) to view on draw.io.
 
 ## What we designed
 
