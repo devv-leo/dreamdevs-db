@@ -1,136 +1,132 @@
 # Database Schema Design for Greenfield Academy
- 
-**Status:** ERD complete. Tap [here](https://drive.google.com/file/d/1Zy1hQp9IG4MHYcbmLNP3nqJFHdZU1NDu/view?usp=drive_link) to view on draw.io.
+
+**Status:** ERD complete and SQL implemented.
 
 ## What we designed
 
 A relational database schema for Greenfield Academy, derived entirely from a plain-English description given by Mrs Adeyemi, Head of Administration. No table list was provided — entities, attributes, relationships, and constraints were all extracted from the description.
 
-The schema has **11 tables** across four logical groups:
+The schema has **10 tables** across four logical groups:
 
 | Group | Tables |
 |---|---|
-| People | `staff`, `teacher`, `student`, `year_group` |
-| Curriculum | `course`, `term`, `course_session` |
-| Student activity | `enrolment`, `attendance` |
-| Extracurricular | `club`, `club_membership` |
+| People | `Student`, `Staff` |
+| Curriculum | `Course`, `Session`, `CourseSession` |
+| Student activity | `Class`, `Enrollment`, `Attendance` |
+| Extracurricular | `Club`, `ClubStudent` |
+
+---
 
 ## Key design decisions
 
-### 1. `staff` and `teacher` are separate tables
+### 1. Staff is a single table
 
-All staff (teaching and contract) share common fields: name, staff ID, phone, email, and staff type. Only teaching staff have a specialisation. Rather than adding a nullable `specialisation` column to `staff` — which would mean nothing for contract staff — a separate `teacher` table holds just that one extra column and references `staff` via a shared primary key (`staff_id`).
+All staff (permanent and contract) share the same fields: name, staff ID, phone, email, and specialisation. A single `Staff` table with a `staffType` ENUM column distinguishes them. A separate `teacher` table would only be justified if teaching staff had many extra fields. With one extra attribute (`specialisation`), the overhead of a 1-to-1 extension table is not worth it.
 
-This is called a **1-to-1 extension pattern**. It keeps the `staff` table clean and avoids columns that are irrelevant for half the rows.
+### 2. yearGroup and term are ENUM columns, not lookup tables
 
----
+Year groups (7 through 11) and terms (1, 2, 3) are small, fixed value sets that will never change. Storing them as ENUMs avoids extra tables and joins while still enforcing valid values at the database level.
 
-### 2. `course_session` is its own table — not collapsed into `course`
+### 3. Session represents an academic year
 
-This was the most important structural decision. A course like Mathematics runs multiple times — different terms, different years, different teachers. Each of those is a distinct **session**.
+The `Session` table stores academic years (e.g. `2024/2025`) with a start and end date. This gives `CourseSession` a proper time anchor: a course session belongs to a specific term within a specific academic year, not just a floating term number.
 
-`course_session` holds foreign keys to `course`, `term`, and `teacher`. This means:
-- Mathematics in Term 1 of 2025 taught by Mr Okafor is a different row from Mathematics in Term 2 of 2025 taught by Mrs Bello
-- The same course data is never duplicated — `course` stays as a single record for Mathematics
-- You can query historical sessions cleanly without overwriting anything
+### 4. CourseSession is its own table
 
-Collapsing sessions into courses (putting `term_id` and `teacher_id` directly on `course`) would have broken as soon as a course ran more than once.
+This was the most important structural decision. A course like Mathematics runs multiple times across different terms, years, and teachers. Each of those is a distinct session. `CourseSession` holds foreign keys to `Course`, `Staff`, and `Session`, plus a `term` ENUM.
 
----
+Mathematics in Term 1 of 2025/2026 taught by Mr Okafor is a different row from Mathematics in Term 2 taught by Mrs Bello, even though the course is the same. A UNIQUE constraint on `(courseId, term, staffId, sessionId)` enforces this at the database level and prevents duplicate sessions from being created.
 
-### 3. `enrolment` is a junction table that carries its own data
+### 5. Class represents individual lesson dates
 
-Students enrol in sessions, not in courses directly. This is a **many-to-many** relationship (a student can be in many sessions, a session has many students), which requires a junction table.
+A `Class` is a single scheduled lesson on a specific date within a `CourseSession`. This table exists because attendance is recorded per lesson, not per session as a whole. Without `Class`, there would be no way to record that a student was present on one date but absent on another.
 
-`enrolment` resolves that relationship but also stores data that only makes sense *in the context of one specific student in one specific session*:
-- `enrol_date` — when they joined
-- `status` — active, withdrawn, or completed (ENUM)
-- `final_mark` — nullable, because results aren't always processed immediately
-- `letter_grade` — nullable for the same reason
+### 6. Enrollment is a junction table that carries data
 
-This is a common real-world pattern: junction tables often become the most data-rich tables in a schema.
+Students enrol in sessions, not courses directly. This is a many-to-many relationship resolved by `Enrollment`. The table also stores data specific to each student-session pairing: `enrollmentDate`, `enrollmentStatus`, `score`, and `grade`.
 
----
+`score` and `grade` are explicitly nullable because results are not always processed immediately. Marking them NOT NULL would mean the enrollment row cannot exist until results are ready, which is wrong.
 
-### 4. `attendance` hangs off `enrolment`, not directly off `student` + `session`
+### 7. Attendance links to Student and Class
 
-Attendance is recorded per class date, per student, per session. It would seem natural to link attendance straight to a student and a session, but there is a more correct structure: attendance only exists because an enrolment exists first.
+Attendance is recorded per student per scheduled class. `Attendance` holds foreign keys to `Student` and `Class`, plus an `attendanceStatus` ENUM (`present`, `absent`, `late`). Both foreign keys use `ON DELETE CASCADE` so attendance records are cleaned up automatically if either the student or the class is removed.
 
-By linking `attendance` to `enrolment_id`, we get two things for free:
-- We cannot accidentally record attendance for a student who is not enrolled in that session — the foreign key prevents it
-- Queries about attendance automatically have access to enrolment status, marks, and grades without extra joins
+### 8. ClubStudent is a junction table with temporal data
 
----
+Students can join many clubs; clubs can have many members. `ClubStudent` resolves this many-to-many relationship and stores the `term` and `clubYear` (stored as MySQL's `YEAR` type) when the student joined, as the description requires. A surrogate primary key (`clubStudentId`) is used rather than a composite key to allow a student to re-join a club in a later term without a uniqueness conflict.
 
-### 5. `club_membership` is a junction table with temporal data
+### 9. ON DELETE rules are defined on every foreign key
 
-Students can join many clubs, clubs can have many members — another many-to-many relationship. The junction table `club_membership` stores the `term_number` and `academic_year` a student joined, because the description specifically says this should be recorded.
+| Table | FK column | Rule | Reason |
+|---|---|---|---|
+| `Club` | `staffId` | RESTRICT | Cannot delete a staff member who leads a club |
+| `CourseSession` | `courseId`, `staffId`, `sessionId` | RESTRICT | Protect academic records from accidental deletion |
+| `Class` | `courseSessionId` | CASCADE | Classes have no meaning without their parent session |
+| `Enrollment` | `studentId` | CASCADE | Enrollment records are removed when a student is deleted |
+| `Enrollment` | `courseSessionId` | RESTRICT | Enrollment history is protected from session deletion |
+| `Attendance` | `studentId`, `classId` | CASCADE | Attendance records are removed with the student or class |
+| `ClubStudent` | `studentId`, `clubId` | CASCADE | Membership records are removed with the student or club |
 
-Note: `club_membership` does *not* use a surrogate primary key. The composite of `(student_id, club_id)` is the natural primary key — a student can only join the same club once (you would add a new row if they re-join in a later term, but that is an edge case to discuss in the debrief).
-
----
-
-### 6. Nullable columns are intentional, not lazy
-
-Two columns on `enrolment` are explicitly nullable: `final_mark` and `letter_grade`. This is a deliberate constraint decision, not an oversight. The description states: *"not all enrolled students receive a final mark immediately — sometimes we are still processing results."*
-
-Making these `NOT NULL` would mean the row cannot exist until results are ready, which is wrong. Nullable here means: *the row exists (the student is enrolled), but this piece of information is not yet known.*
-
----
-
-### 7. ENUM types are used where the value set is fixed and known
-
-The following columns use ENUM rather than free-text VARCHAR:
+### 10. ENUM types are used for all fixed value sets
 
 | Table | Column | Values |
 |---|---|---|
-| `staff` | `staff_type` | `teaching`, `contract` |
-| `student` | `gender` | `male`, `female`, `other` |
-| `enrolment` | `status` | `active`, `withdrawn`, `completed` |
-| `attendance` | `status` | `present`, `absent`, `late` |
-| `club` | `meeting_day` | `monday` … `friday` |
+| `Student` | `gender` | `male`, `female` |
+| `Student` | `yearGroup` | `7`, `8`, `9`, `10`, `11` |
+| `Staff` | `staffType` | `permanent`, `contract` |
+| `CourseSession` | `term` | `1`, `2`, `3` |
+| `Enrollment` | `enrollmentStatus` | `active`, `withdrawn`, `completed` |
+| `Enrollment` | `grade` | `A`, `B`, `C`, `D`, `E`, `F` |
+| `Attendance` | `attendanceStatus` | `present`, `absent`, `late` |
+| `Club` | `meetingDay` | `Monday` through `Sunday` |
+| `ClubStudent` | `term` | `1`, `2`, `3` |
 
-ENUM enforces the value set at the database level — no application code needed to reject an invalid status like `"absnt"`.
-
----
-
-### 8. Many-to-many relationships resolved with junction tables
-
-Two M:N relationships were identified and both get junction tables:
+### 11. Many-to-many relationships resolved with junction tables
 
 | Relationship | Junction table | Extra columns |
 |---|---|---|
-| Student ↔ Course session | `enrolment` | `enrol_date`, `status`, `final_mark`, `letter_grade` |
-| Student ↔ Club | `club_membership` | `term_number`, `academic_year` |
+| Student and CourseSession | `Enrollment` | `enrollmentDate`, `enrollmentStatus`, `score`, `grade` |
+| Student and Club | `ClubStudent` | `term`, `clubYear` |
 
-A direct foreign key between students and sessions (or students and clubs) cannot represent M:N — a single FK column can only point to one row.
+### 12. Uniqueness and check constraints
+
+| Table | Column | Constraint | Reason |
+|---|---|---|---|
+| `Course` | `shortCode` | UNIQUE | Internal codes like `MATH-101` must be unique |
+| `CourseSession` | `(courseId, term, staffId, sessionId)` | UNIQUE | Prevents the same session from being created twice |
 
 ---
 
-## What is still to do
-
-- Write `CREATE TABLE` statements in the correct order (parent tables before child tables)
-- Insert sample data (minimum: 5 students, 3 courses, 3 sessions, 2 clubs, varied statuses)
-- Write and run the five required queries (A through E)
-
 ## Table creation order
 
-Because child tables cannot be created before the parent they reference, the correct order is:
+Parent tables must be created before the child tables that reference them:
 
-1. `year_group`
-2. `staff`
-3. `teacher`
-4. `course`
-5. `term`
-6. `student`
-7. `course_session`
-8. `club`
-9. `enrolment`
-10. `attendance`
-11. `club_membership`
+1. `Student`
+2. `Staff`
+3. `Course`
+4. `Session`
+5. `Club`
+6. `CourseSession`
+7. `Class`
+8. `Enrollment`
+9. `Attendance`
+10. `ClubStudent`
 
+---
+
+## Deliverables completed
+
+- [x] ERD designed and reviewed
+- [x] `CREATE TABLE` statements written in correct dependency order
+- [x] ON DELETE rules defined on every foreign key
+- [x] UNIQUE constraints applied on `Course.shortCode` and `CourseSession`
+- [x] Sample data inserted (6 students, 4 staff, 3 courses, 2 academic years, 6 course sessions, 9 classes, varied enrollment statuses, mixed attendance, 4 clubs)
+- [x] Required queries A through E written and verified
+
+---
 
 ## Group members
+
 - Precious Michael
 - Anthony Alikah
 - Olalekan Olaoye
