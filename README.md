@@ -112,7 +112,6 @@ A direct foreign key between students and sessions (or students and clubs) canno
 - Write `CREATE TABLE` statements in the correct order (parent tables before child tables)
 - Insert sample data (minimum: 5 students, 3 courses, 3 sessions, 2 clubs, varied statuses)
 - Write and run the five required queries (A through E)
-- Optionally: attempt the bonus tasks (guardians table, full session check, at-risk students view)
 
 ## Table creation order
 
@@ -135,3 +134,4 @@ Because child tables cannot be created before the parent they reference, the cor
 - Precious Michael
 - Anthony Alikah
 - Olalekan Olaoye
+- John Agene
