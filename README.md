@@ -126,11 +126,12 @@ Because child tables cannot be created before the parent they reference, the cor
 6. `student`
 7. `course_session`
 8. `club`
+9. `enrolment`
+10. `attendance`
+11. `club_membership`
+
 
 ## Group members
-- Precious Michael @Eyiza
-- Anthony Alikah @dreyyfuss
-- Olalekan Olaoye @devv-leo
-10. `enrolment`
-11. `attendance`
-12. `club_membership`
+- Precious Michael
+- Anthony Alikah
+- Olalekan Olaoye
