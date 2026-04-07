@@ -125,6 +125,28 @@ Parent tables must be created before the child tables that reference them:
 
 ---
 
+## Queries
+
+- Query A -  Lists every student's full name, year group, and the number of
+sessions they are currently enrolled in with a status of 'active' .
+Include students with zero active enrolments.
+
+- Query B - This shows the course title, the
+teacher's full name, and the total number of enrolled students for each course session in Term 1 of 2025. It's ordered
+by enrolled count descending.
+
+- Query C - Finds all students who have at least one 'absent' attendance record.
+Show their full name, year group, and their total number of absences
+across all sessions, ordered by absences descending.
+
+- Query D - Lists every club, the lead teacher's full name, and the number of
+current student members. Include clubs that have no members yet.
+
+- Query E - Shows the average final mark per course for completed enrolments
+where a mark has been recorded. Displays the course title, the
+average mark rounded to one decimal place, and the number of
+students included. Shows courses where at least 3 results exist.
+
 ## Group members
 
 - Precious Michael
