@@ -24,7 +24,7 @@ CREATE TABLE Staff (
 CREATE TABLE Course (
     courseId        	INT AUTO_INCREMENT PRIMARY KEY,
     title           	VARCHAR(255) NOT NULL,
-    shortCode       	VARCHAR(50) NOT NULL,
+    shortCode       	VARCHAR(50) NOT NULL UNIQUE,
     courseDescription   TEXT NOT NULL,
     maxClassSize    	INT NOT NULL
 );
@@ -42,7 +42,7 @@ CREATE TABLE Club (
     staffId         INT NOT NULL,
     clubDescription TEXT,
     meetingDay      ENUM('Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday') NOT NULL,
-    FOREIGN KEY (staffId) REFERENCES Staff(staffId)
+    FOREIGN KEY (staffId) REFERENCES Staff(staffId) ON DELETE RESTRICT
 );
 
 CREATE TABLE CourseSession (
@@ -51,16 +51,17 @@ CREATE TABLE CourseSession (
     term            ENUM('1', '2', '3') NOT NULL,
     staffId         INT NOT NULL,
     sessionId       INT NOT NULL,
-    FOREIGN KEY (courseId)  REFERENCES Course(courseId),
-    FOREIGN KEY (staffId)   REFERENCES Staff(staffId),
-    FOREIGN KEY (sessionId) REFERENCES Session(sessionId)
+    FOREIGN KEY (courseId)  REFERENCES Course(courseId) ON DELETE RESTRICT,
+    FOREIGN KEY (staffId)   REFERENCES Staff(staffId) ON DELETE RESTRICT,
+    FOREIGN KEY (sessionId) REFERENCES Session(sessionId) ON DELETE RESTRICT,
+    UNIQUE(courseId, term, staffId, sessionId)
 );
 
 CREATE TABLE Class (
     classId         INT AUTO_INCREMENT PRIMARY KEY,
     courseSessionId INT NOT NULL,
     scheduledDate   DATE NOT NULL,
-    FOREIGN KEY (courseSessionId) REFERENCES CourseSession(courseSessionId)
+    FOREIGN KEY (courseSessionId) REFERENCES CourseSession(courseSessionId) ON DELETE CASCADE
 );
 
 CREATE TABLE Enrollment (
@@ -71,8 +72,8 @@ CREATE TABLE Enrollment (
     enrollmentDate      DATE NOT NULL,
     score               INT NULL,
     grade               ENUM('A', 'B', 'C', 'D', 'E', 'F') NULL,
-    FOREIGN KEY (studentId)       REFERENCES Student(studentId),
-    FOREIGN KEY (courseSessionId) REFERENCES CourseSession(courseSessionId)
+    FOREIGN KEY (studentId)       REFERENCES Student(studentId) ON DELETE CASCADE,
+    FOREIGN KEY (courseSessionId) REFERENCES CourseSession(courseSessionId) ON DELETE RESTRICT
 );
 
 CREATE TABLE Attendance (
@@ -80,8 +81,8 @@ CREATE TABLE Attendance (
     studentId       INT NOT NULL,
     classId         INT NOT NULL,
     attendanceStatus          ENUM('present', 'absent', 'late') NOT NULL,
-    FOREIGN KEY (studentId) REFERENCES Student(studentId),
-    FOREIGN KEY (classId)   REFERENCES Class(classId)
+    FOREIGN KEY (studentId) REFERENCES Student(studentId) ON DELETE CASCADE,
+    FOREIGN KEY (classId)   REFERENCES Class(classId) ON DELETE CASCADE
 );
 
 CREATE TABLE ClubStudent (
@@ -90,6 +91,6 @@ CREATE TABLE ClubStudent (
     clubId          INT NOT NULL,
     term            ENUM('1', '2', '3') NOT NULL,
     clubYear        YEAR NOT NULL,
-    FOREIGN KEY (studentId) REFERENCES Student(studentId),
-    FOREIGN KEY (clubId)    REFERENCES Club(clubId)
+    FOREIGN KEY (studentId) REFERENCES Student(studentId) ON DELETE CASCADE,
+    FOREIGN KEY (clubId)    REFERENCES Club(clubId) ON DELETE CASCADE
 );

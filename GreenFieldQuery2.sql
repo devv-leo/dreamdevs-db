@@ -1,3 +1,4 @@
+USE GreenFieldSchoolDB;
 SELECT
     c.title AS course_title,
     CONCAT(st.firstName, ' ', st.lastName) AS teacher_name,
@@ -8,5 +9,5 @@ JOIN Staff st ON cs.staffId   = st.staffId
 JOIN Session se ON cs.sessionId = se.sessionId
 LEFT JOIN Enrollment e ON e.courseSessionId = cs.courseSessionId
 WHERE cs.term = '1' AND se.sessionName = '2024/2025 Academic Year'
-GROUP BY cs.courseSessionId, c.title, st.firstName, st.lastName
+GROUP BY cs.courseSessionId
 ORDER BY enrolled_students DESC;
