@@ -1,4 +1,5 @@
 USE GreenFieldSchoolDB;
+
 SELECT
     c.title AS course_title,
     CONCAT(st.firstName, ' ', st.lastName) AS teacher_name,

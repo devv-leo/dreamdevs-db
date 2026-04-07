@@ -1,3 +1,5 @@
+USE GreenFieldSchoolDB;
+
 SELECT
     CONCAT(s.firstName, ' ', s.lastName) AS full_name,
     s.yearGroup AS year_group,
