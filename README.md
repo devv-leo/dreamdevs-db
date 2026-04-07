@@ -142,10 +142,10 @@ across all sessions, ordered by absences descending.
 - Query D - Lists every club, the lead teacher's full name, and the number of
 current student members. Include clubs that have no members yet.
 
-- Query E - Show the average final mark per course for completed enrolments
-where a mark has been recorded. Display the course title, the
+- Query E - Shows the average final mark per course for completed enrolments
+where a mark has been recorded. Displays the course title, the
 average mark rounded to one decimal place, and the number of
-students included. Only show courses where at least 3 results exist.
+students included. Shows courses where at least 3 results exist.
 
 ## Group members
 
